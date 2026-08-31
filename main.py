@@ -10,15 +10,15 @@ intents.message_content = True
 bot = commands.Bot(command_prefix=config.PREFIX, intents=intents, help_command=None)
 
 EXTENSIONS = [
-    "moderation",
-    "leveling",
-    "economy",
-    "automod",
-    "fun",
-    "tickets",
-    "utility",
+    "cogs.moderation",
+    "cogs.leveling",
+    "cogs.economy",
+    "cogs.automod",
+    "cogs.fun",
+    "cogs.tickets",
+    "cogs.utility",
+    "cogs.help",
 ]
-
 
 @bot.event
 async def on_ready():
@@ -29,13 +29,15 @@ async def on_ready():
     except Exception as e:
         print(f"Errore sync: {e}")
 
-
 async def main():
     async with bot:
         for ext in EXTENSIONS:
-            await bot.load_extension(ext)
-        await bot.start("IL_TUO_TOKEN_QUI")
-
+            try:
+                await bot.load_extension(ext)
+                print(f"✅ Estensione caricata: {ext}")
+            except Exception as e:
+                print(f"❌ Errore caricando {ext}: {e}")
+        await bot.start(config.TOKEN)
 
 if __name__ == "__main__":
     asyncio.run(main())
