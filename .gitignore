@@ -5,10 +5,6 @@ env/
 __pycache__/
 *.pyc
 
-# Config sensibili
-config.py
-token.txt
-
 # Database
 *.db
 *.sqlite3
