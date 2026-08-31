@@ -1,6 +1,10 @@
-import discord
+import os
+from dotenv import load_dotenv
 
-# ==== PREFIX ====
+load_dotenv()
+
+# ==== TOKEN & PREFIX ====
+TOKEN = os.getenv("DISCORD_TOKEN")
 PREFIX = "."
 
 # ==== RUOLI LIVELLI ====
