@@ -1,4 +1,5 @@
 import discord
+import asyncio
 from discord.ext import commands
 from discord.ui import View, Select, Button, Modal, TextInput
 
@@ -28,9 +29,9 @@ class TicketManageView(View):
 
     @discord.ui.button(label="Close", style=discord.ButtonStyle.red, custom_id="ticket_close")
     async def close(self, interaction: discord.Interaction, button: Button):
-        await interaction.response.send_message("🔒 Chiusura ticket tra 5 secondi...")
-        await interaction.channel.edit(name=f"closed-{interaction.channel.name}")
-        await interaction.channel.set_permissions(interaction.guild.default_role, view_channel=False)
+        await interaction.response.send_message("🔒 Il ticket verrà eliminato tra 5 secondi...")
+        await asyncio.sleep(5)
+        await interaction.channel.delete()
 
     @discord.ui.button(label="Close with reason", style=discord.ButtonStyle.red, custom_id="ticket_close_reason")
     async def close_with_reason(self, interaction: discord.Interaction, button: Button):
@@ -45,9 +46,12 @@ class CloseReasonModal(Modal, title="Chiudi ticket con motivazione"):
     reason = TextInput(label="Motivazione", style=discord.TextStyle.paragraph, required=True)
 
     async def on_submit(self, interaction: discord.Interaction):
-        await interaction.response.send_message(f"🔒 Ticket chiuso da {interaction.user.mention}\n**Motivo:** {self.reason.value}")
-        await interaction.channel.edit(name=f"closed-{interaction.channel.name}")
-        await interaction.channel.set_permissions(interaction.guild.default_role, view_channel=False)
+        await interaction.response.send_message(
+            f"🔒 Ticket in chiusura tra 5 secondi.\n**Motivo:** {self.reason.value}"
+        )
+        channel = interaction.channel
+        await asyncio.sleep(5)
+        await channel.delete()
 
 
 class AddUserModal(Modal, title="Aggiungi utente al ticket"):
@@ -183,7 +187,15 @@ class Tickets(commands.Cog):
     async def pannello_ticket(self, ctx):
         embed = discord.Embed(
             title="🎫 Apri un ticket",
-            description="Seleziona dal menù qui sotto il motivo per cui vuoi aprire un ticket.",
+            description=(
+                "Aprendo ticket qua puoi richiedere:\n\n"
+                "❓| Aiuto Generale\n"
+                "🚨| Segnala Utente\n"
+                "🎁| Reclama Giveaway\n"
+                "📋| Provino Staff\n"
+                "🤝| Partnership\n\n"
+                "⚠️ ATTENZIONE: ⚠️ Ci teniamo il diritto di chiudere i ticket aperti inutilmente"
+            ),
             color=discord.Color.blurple()
         )
         await ctx.send(embed=embed, view=MainTicketView())
