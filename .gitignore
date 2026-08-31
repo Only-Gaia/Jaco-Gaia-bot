@@ -1,0 +1,25 @@
+# Ambiente
+.env
+venv/
+env/
+__pycache__/
+*.pyc
+
+# Config sensibili
+config.py
+token.txt
+
+# Database
+*.db
+*.sqlite3
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Log
+*.log
