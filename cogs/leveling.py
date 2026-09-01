@@ -5,8 +5,8 @@ import config
 
 
 def messages_needed(level):
-    # livello 1 = 5 msg, livello 2 = 10 msg, ecc. (5 * livello)
-    return 5 * (level + 1)
+    # livello 1 = 20 msg, livello 2 = 40 msg, ecc. (20 * livello)
+    return 20 * (level + 1)
 
 
 class Leveling(commands.Cog):
@@ -19,7 +19,6 @@ class Leveling(commands.Cog):
             return
         levels, u = data.get_user_levels(message.guild.id, message.author.id)
         u["messages"] += 1
-
         needed = messages_needed(u["level"])
         if u["messages"] >= needed:
             u["level"] += 1
