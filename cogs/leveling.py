@@ -5,8 +5,8 @@ import config
 
 
 def messages_needed(level):
-    # livello 1 = 20 msg, livello 2 = 40 msg, ecc. (20 * livello)
-    return 20 * (level + 1)
+    # livello 1 = 15 msg, livello 2 = 30 msg, ecc. (15 * livello)
+    return 15 * (level + 1)
 
 
 class Leveling(commands.Cog):
