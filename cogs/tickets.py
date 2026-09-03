@@ -9,6 +9,12 @@ from discord.ui import View, Select, Button, Modal, TextInput
 TICKET_CATEGORY_NAME = "🎫 Ticket"
 CONFIG_FILE = "ticket_config.json"
 
+# Domande sequenziali del sistema di prenotazione appuntamenti
+BOOKING_QUESTIONS = [
+    "⏰ Con chi vuoi prenotare un'appuntamento?",
+    "📖 Hai letto gli orari per gli appuntamenti?",
+]
+
 
 # ---------------------- GESTIONE CONFIGURAZIONE (JSON) ----------------------
 def load_config():
@@ -32,11 +38,18 @@ config = load_config()
 def get_guild_config(guild_id: int):
     gid = str(guild_id)
     if gid not in config:
-        config[gid] = {"staff_roles": [], "review_channel": None, "tickets": {}, "ratings": {"count": 0, "total": 0}}
+        config[gid] = {
+            "staff_roles": [],
+            "review_channel": None,
+            "reservation_channel": None,
+            "tickets": {},
+            "ratings": {"count": 0, "total": 0},
+        }
         save_config(config)
     else:
         config[gid].setdefault("staff_roles", [])
         config[gid].setdefault("review_channel", None)
+        config[gid].setdefault("reservation_channel", None)
         config[gid].setdefault("tickets", {})
         config[gid].setdefault("ratings", {"count": 0, "total": 0})
     return config[gid]
@@ -397,6 +410,69 @@ class StaffPanelView(View):
         await create_ticket_channel(interaction, "provino", "Provino staff")
 
 
+# ---------------------- PANNELLO PRENOTAZIONE APPUNTAMENTI ----------------------
+class BookingPanelView(View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="Prenota appuntamento", emoji="⏰", style=discord.ButtonStyle.blurple, custom_id="booking_ticket")
+    async def booking_button(self, interaction: discord.Interaction, button: Button):
+        gconf = get_guild_config(interaction.guild.id)
+        reservation_channel_id = gconf.get("reservation_channel")
+        reservation_channel = interaction.guild.get_channel(reservation_channel_id) if reservation_channel_id else None
+
+        if not reservation_channel:
+            return await interaction.response.send_message(
+                "❌ Il canale delle prenotazioni non è stato configurato. Contatta uno staff.", ephemeral=True
+            )
+
+        # Prima domanda
+        await interaction.response.send_message(
+            f"📩 Rispondi qui in chat, hai 2 minuti per ogni risposta.\n\n**{BOOKING_QUESTIONS[0]}**",
+            ephemeral=True
+        )
+
+        bot = interaction.client
+        answers = []
+
+        def check(m: discord.Message):
+            return m.author.id == interaction.user.id and m.channel.id == interaction.channel.id
+
+        for i, question in enumerate(BOOKING_QUESTIONS):
+            if i > 0:
+                # Fa la domanda successiva solo dopo aver ricevuto la risposta precedente
+                await interaction.followup.send(f"**{question}**", ephemeral=True)
+
+            try:
+                msg = await bot.wait_for("message", check=check, timeout=120)
+            except asyncio.TimeoutError:
+                return await interaction.followup.send(
+                    "⏱️ Tempo scaduto, prenotazione annullata. Premi di nuovo il bottone per riprovare.",
+                    ephemeral=True
+                )
+
+            answers.append(msg.content)
+            try:
+                await msg.delete()
+            except (discord.Forbidden, discord.NotFound):
+                pass
+
+        # Invia domande + risposte nel canale delle prenotazioni configurato
+        embed = discord.Embed(
+            title="⏰ Nuova prenotazione appuntamento",
+            color=discord.Color.blurple()
+        )
+        embed.set_author(name=str(interaction.user), icon_url=interaction.user.display_avatar.url)
+        for question, answer in zip(BOOKING_QUESTIONS, answers):
+            embed.add_field(name=question, value=answer or "—", inline=False)
+        embed.set_footer(text=f"ID utente: {interaction.user.id}")
+
+        await reservation_channel.send(embed=embed)
+        await interaction.followup.send(
+            "✅ Prenotazione inviata con successo! Lo staff ti contatterà a breve.", ephemeral=True
+        )
+
+
 # ---------------------- COG ----------------------
 class Tickets(commands.Cog):
     def __init__(self, bot):
@@ -411,6 +487,7 @@ class Tickets(commands.Cog):
         self.bot.add_view(MinecraftPanelView())
         self.bot.add_view(SponsorPanelView())
         self.bot.add_view(StaffPanelView())
+        self.bot.add_view(BookingPanelView())
 
     # ---------------------- COMANDI PANNELLI ----------------------
     @commands.hybrid_command(name="pannelloticket", description="Invia il pannello ticket principale")
@@ -497,6 +574,20 @@ class Tickets(commands.Cog):
         )
         await ctx.send(embed=embed, view=StaffPanelView())
 
+    @commands.hybrid_command(name="ticketprenotazioni", description="Invia il pannello prenotazione appuntamenti")
+    @commands.has_permissions(administrator=True)
+    async def ticket_prenotazioni(self, ctx):
+        embed = discord.Embed(
+            title="⏰ Prenota un appuntamento",
+            description=(
+                "Premi il bottone qui sotto per prenotare un appuntamento.\n"
+                "Ti farò un paio di domande veloci prima di inviare la richiesta allo staff.\n\n"
+                "⚠️ Rispondi nel canale entro 2 minuti per ogni domanda, altrimenti la prenotazione verrà annullata."
+            ),
+            color=discord.Color.blurple()
+        )
+        await ctx.send(embed=embed, view=BookingPanelView())
+
     # ---------------------- COMANDI CONFIGURAZIONE RUOLI STAFF ----------------------
     # NOTA: con "/" Discord non supporta un numero variabile di parametri, quindi
     # il comando accetta fino a 15 ruoli come opzioni singole (la prima obbligatoria,
@@ -557,6 +648,24 @@ class Tickets(commands.Cog):
         gconf["review_channel"] = None
         save_config(config)
         await ctx.send("✅ Canale delle recensioni rimosso.")
+
+    # ---------------------- COMANDI CONFIGURAZIONE CANALE PRENOTAZIONI ----------------------
+    @commands.hybrid_command(name="configpreno", description="Configura il canale dove arrivano le prenotazioni appuntamenti")
+    @commands.has_permissions(administrator=True)
+    @app_commands.describe(channel="Canale dove inviare le prenotazioni")
+    async def config_preno(self, ctx, channel: discord.TextChannel):
+        gconf = get_guild_config(ctx.guild.id)
+        gconf["reservation_channel"] = channel.id
+        save_config(config)
+        await ctx.send(f"✅ Le prenotazioni verranno inviate in {channel.mention}")
+
+    @commands.hybrid_command(name="removepreno", description="Rimuove il canale delle prenotazioni configurato")
+    @commands.has_permissions(administrator=True)
+    async def remove_preno(self, ctx):
+        gconf = get_guild_config(ctx.guild.id)
+        gconf["reservation_channel"] = None
+        save_config(config)
+        await ctx.send("✅ Canale delle prenotazioni rimosso.")
 
 
 async def setup(bot):
