@@ -2,6 +2,7 @@ import discord
 import asyncio
 import json
 import os
+from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Select, Button, Modal, TextInput
 
@@ -412,7 +413,7 @@ class Tickets(commands.Cog):
         self.bot.add_view(StaffPanelView())
 
     # ---------------------- COMANDI PANNELLI ----------------------
-    @commands.command(name="pannelloticket")
+    @commands.hybrid_command(name="pannelloticket", description="Invia il pannello ticket principale")
     @commands.has_permissions(administrator=True)
     async def pannello_ticket(self, ctx):
         embed = discord.Embed(
@@ -430,7 +431,7 @@ class Tickets(commands.Cog):
         )
         await ctx.send(embed=embed, view=MainTicketView())
 
-    @commands.command(name="pannellobot")
+    @commands.hybrid_command(name="pannellobot", description="Invia il pannello acquisto bot")
     @commands.has_permissions(administrator=True)
     async def pannello_bot(self, ctx):
         embed = discord.Embed(
@@ -448,7 +449,7 @@ class Tickets(commands.Cog):
         )
         await ctx.send(embed=embed, view=BotPurchaseView())
 
-    @commands.command(name="supportticket")
+    @commands.hybrid_command(name="supportticket", description="Invia il pannello supporto")
     @commands.has_permissions(administrator=True)
     async def support_ticket(self, ctx):
         embed = discord.Embed(
@@ -466,7 +467,7 @@ class Tickets(commands.Cog):
         )
         await ctx.send(embed=embed, view=SupportTicketView())
 
-    @commands.command(name="pannellominecraft")
+    @commands.hybrid_command(name="pannellominecraft", description="Invia il pannello supporto Minecraft")
     @commands.has_permissions(administrator=True)
     async def pannello_minecraft(self, ctx):
         embed = discord.Embed(
@@ -476,7 +477,7 @@ class Tickets(commands.Cog):
         )
         await ctx.send(embed=embed, view=MinecraftPanelView())
 
-    @commands.command(name="ticketsponsor")
+    @commands.hybrid_command(name="ticketsponsor", description="Invia il pannello richiesta sponsor")
     @commands.has_permissions(administrator=True)
     async def ticket_sponsor(self, ctx):
         embed = discord.Embed(
@@ -486,7 +487,7 @@ class Tickets(commands.Cog):
         )
         await ctx.send(embed=embed, view=SponsorPanelView())
 
-    @commands.command(name="pannelloprovinostaff")
+    @commands.hybrid_command(name="pannelloprovinostaff", description="Invia il pannello provino staff")
     @commands.has_permissions(administrator=True)
     async def pannello_provino_staff(self, ctx):
         embed = discord.Embed(
@@ -497,15 +498,31 @@ class Tickets(commands.Cog):
         await ctx.send(embed=embed, view=StaffPanelView())
 
     # ---------------------- COMANDI CONFIGURAZIONE RUOLI STAFF ----------------------
-    @commands.command(name="rolestaffconfig")
+    # NOTA: con "/" Discord non supporta un numero variabile di parametri, quindi
+    # il comando accetta fino a 15 ruoli come opzioni singole (la prima obbligatoria,
+    # le altre facoltative). Con "." puoi comunque scrivere fino a 15 menzioni di
+    # ruolo in fila, nello stesso ordine.
+    @commands.hybrid_command(name="rolestaffconfig", description="Configura fino a 15 ruoli staff da pingare nei ticket")
     @commands.has_permissions(administrator=True)
-    async def role_staff_config(self, ctx, *roles: discord.Role):
-        if not roles:
-            return await ctx.send(
-                "❌ Devi menzionare almeno un ruolo.\nEsempio: `!rolestaffconfig @Staff @Moderatori`"
-            )
-        if len(roles) > 15:
-            return await ctx.send("❌ Puoi configurare al massimo **15 ruoli**.")
+    @app_commands.describe(
+        role1="Ruolo staff", role2="Ruolo staff", role3="Ruolo staff", role4="Ruolo staff",
+        role5="Ruolo staff", role6="Ruolo staff", role7="Ruolo staff", role8="Ruolo staff",
+        role9="Ruolo staff", role10="Ruolo staff", role11="Ruolo staff", role12="Ruolo staff",
+        role13="Ruolo staff", role14="Ruolo staff", role15="Ruolo staff"
+    )
+    async def role_staff_config(
+        self, ctx,
+        role1: discord.Role,
+        role2: discord.Role = None, role3: discord.Role = None, role4: discord.Role = None,
+        role5: discord.Role = None, role6: discord.Role = None, role7: discord.Role = None,
+        role8: discord.Role = None, role9: discord.Role = None, role10: discord.Role = None,
+        role11: discord.Role = None, role12: discord.Role = None, role13: discord.Role = None,
+        role14: discord.Role = None, role15: discord.Role = None
+    ):
+        roles = [r for r in [
+            role1, role2, role3, role4, role5, role6, role7, role8,
+            role9, role10, role11, role12, role13, role14, role15
+        ] if r is not None]
 
         gconf = get_guild_config(ctx.guild.id)
         gconf["staff_roles"] = [r.id for r in roles]
@@ -515,7 +532,7 @@ class Tickets(commands.Cog):
         await ctx.send(f"✅ Ruoli staff configurati ({len(roles)}/15): {mentions}\n"
                         f"Questi ruoli verranno pingati nei nuovi ticket e potranno usare Claim/Unclaim.")
 
-    @commands.command(name="rolestaffremove")
+    @commands.hybrid_command(name="rolestaffremove", description="Rimuove tutti i ruoli staff configurati")
     @commands.has_permissions(administrator=True)
     async def role_staff_remove(self, ctx):
         gconf = get_guild_config(ctx.guild.id)
@@ -524,15 +541,16 @@ class Tickets(commands.Cog):
         await ctx.send("✅ Tutti i ruoli staff configurati sono stati rimossi.")
 
     # ---------------------- COMANDI CONFIGURAZIONE CANALE RECENSIONI ----------------------
-    @commands.command(name="rateconfig")
+    @commands.hybrid_command(name="rateconfig", description="Configura il canale dove arrivano le recensioni")
     @commands.has_permissions(administrator=True)
+    @app_commands.describe(channel="Canale dove inviare le recensioni")
     async def rate_config(self, ctx, channel: discord.TextChannel):
         gconf = get_guild_config(ctx.guild.id)
         gconf["review_channel"] = channel.id
         save_config(config)
         await ctx.send(f"✅ Le recensioni verranno inviate in {channel.mention}")
 
-    @commands.command(name="rateremove")
+    @commands.hybrid_command(name="rateremove", description="Rimuove il canale delle recensioni configurato")
     @commands.has_permissions(administrator=True)
     async def rate_remove(self, ctx):
         gconf = get_guild_config(ctx.guild.id)
