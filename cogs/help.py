@@ -1,10 +1,8 @@
 import discord
 from discord.ext import commands
-
 class Help(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-
     @commands.command(name="help")
     async def help_command(self, ctx):
         embed = discord.Embed(
@@ -12,7 +10,6 @@ class Help(commands.Cog):
             description="Prefissi disponibili: `.` e `/`",
             color=discord.Color.blurple()
         )
-
         embed.add_field(
             name="🛡️ Moderazione",
             value=(
@@ -22,7 +19,6 @@ class Help(commands.Cog):
             ),
             inline=False
         )
-
         embed.add_field(
             name="⭐ Livelli",
             value=(
@@ -30,7 +26,6 @@ class Help(commands.Cog):
             ),
             inline=False
         )
-
         embed.add_field(
             name="💰 Economia",
             value=(
@@ -40,7 +35,6 @@ class Help(commands.Cog):
             ),
             inline=False
         )
-
         embed.add_field(
             name="🤖 Automod",
             value=(
@@ -49,7 +43,6 @@ class Help(commands.Cog):
             ),
             inline=False
         )
-
         embed.add_field(
             name="🎉 Gioco / Fun",
             value=(
@@ -58,16 +51,21 @@ class Help(commands.Cog):
             ),
             inline=False
         )
-
         embed.add_field(
             name="🎫 Supporto",
             value=(
-                "`pannelloticket` `pannellominecraft` `ticketsponsor` "
-                "`pannelloprovinostaff` `staffquest` `staffquestcreate`"
+                "`pannelloticket` `pannellobot` `supportticket` `pannellominecraft` "
+                "`ticketsponsor` `pannelloprovinostaff` `staffquest` `staffquestcreate`"
             ),
             inline=False
         )
-
+        embed.add_field(
+            name="🎟️ Config Ticket",
+            value=(
+                "`rolestaffconfig` `rolestaffremove` `rateconfig` `rateremove`"
+            ),
+            inline=False
+        )
         embed.add_field(
             name="⚙️ Utility",
             value=(
@@ -77,10 +75,7 @@ class Help(commands.Cog):
             ),
             inline=False
         )
-
         embed.set_footer(text=f"Richiesto da {ctx.author}", icon_url=ctx.author.display_avatar.url)
-
         await ctx.send(embed=embed)
-
 async def setup(bot):
     await bot.add_cog(Help(bot))
