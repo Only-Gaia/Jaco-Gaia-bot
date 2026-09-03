@@ -4,15 +4,7 @@ load_dotenv()
 # ==== TOKEN & PREFIX ====
 TOKEN = os.getenv("DISCORD_TOKEN")
 PREFIX = "."
-# ==== RUOLI LIVELLI ====
-LEVEL_ROLES = {
-    5: 1543922260560314407,
-    10: 1543922260598071406,
-    20: 1543922260598071407,
-    50: 1543959134691659826,
-    70: 1543959275393523783,
-    100: 1543959438480900216,
-}
+
 # ==== RUOLO SHOP AURA ====
 AURA_SHOP_ROLE = 1543922260598071412
 AURA_SHOP_COST = 100000
@@ -20,6 +12,12 @@ AURA_SHOP_COST = 100000
 # Non più hardcoded: si configurano ora per server con i comandi
 # "roleverified" (ruolo assegnato alla verifica) e
 # "roleunverified" (ruolo rimosso alla verifica), salvati in settings.json
+# ==== BLACKLIST VERIFICA (controllo rischio account) ====
+# Non hardcoded: si gestisce per server con i comandi "blacklistadd",
+# "blacklistremove" e "blacklistlist", salvata in blacklist.json.
+# Al momento della verifica il bot segnala allo staff (senza bloccare)
+# gli account in blacklist o con segnali sospetti (account nuovo,
+# nessun avatar, nome sospetto): vedi check_account_risk() in utility.py
 # ==== RUOLI STAFF/TICKET (ping su ogni ticket) ====
 # Non più hardcoded: si configurano ora per server (fino a 15 ruoli) con
 # il comando "rolestaffconfig" (e si rimuovono con "rolestaffremove"),
