@@ -55,14 +55,16 @@ class Help(commands.Cog):
             name="🎫 Supporto",
             value=(
                 "`pannelloticket` `pannellobot` `supportticket` `pannellominecraft` "
-                "`ticketsponsor` `pannelloprovinostaff` `staffquest` `staffquestcreate`"
+                "`ticketsponsor` `pannelloprovinostaff` `staffquest` `staffquestcreate` "
+                "`ticketprenotazioni`"
             ),
             inline=False
         )
         embed.add_field(
             name="🎟️ Config Ticket",
             value=(
-                "`rolestaffconfig` `rolestaffremove` `rateconfig` `rateremove`"
+                "`rolestaffconfig` `rolestaffremove` `rateconfig` `rateremove` "
+                "`configpreno` `removepreno`"
             ),
             inline=False
         )
