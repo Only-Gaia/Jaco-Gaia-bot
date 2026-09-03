@@ -1,11 +1,9 @@
 import json
 import os
 import threading
-
 LOCK = threading.Lock()
 DATA_DIR = "data"
 os.makedirs(DATA_DIR, exist_ok=True)
-
 FILES = {
     "economy": "economy.json",
     "levels": "levels.json",
@@ -15,13 +13,10 @@ FILES = {
     "staffquest": "staffquest.json",
     "tickets": "tickets.json",
     "settings": "settings.json",
+    "blacklist": "blacklist.json",
 }
-
-
 def _path(name):
     return os.path.join(DATA_DIR, FILES[name])
-
-
 def load(name):
     path = _path(name)
     if not os.path.exists(path):
@@ -32,15 +27,11 @@ def load(name):
                 return json.load(f)
             except json.JSONDecodeError:
                 return {}
-
-
 def save(name, data):
     path = _path(name)
     with LOCK:
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
-
-
 def get_user_economy(guild_id, user_id):
     data = load("economy")
     g = data.setdefault(str(guild_id), {})
@@ -55,8 +46,6 @@ def get_user_economy(guild_id, user_id):
         "last_lucky": 0,
     })
     return data, u
-
-
 def get_user_levels(guild_id, user_id):
     data = load("levels")
     g = data.setdefault(str(guild_id), {})
