@@ -1,8 +1,50 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
+from discord.ui import View, Button
 import data
-import config
+
+
+class VerifyView(View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="Verificati ora", style=discord.ButtonStyle.green, emoji="✅", custom_id="verify_button")
+    async def verify_button(self, interaction: discord.Interaction, button: Button):
+        settings = data.load("settings").get(str(interaction.guild.id), {})
+        verified_id = settings.get("verified_role")
+        unverified_id = settings.get("unverified_role")
+
+        if not verified_id:
+            return await interaction.response.send_message(
+                "❌ Il ruolo verificato non è stato configurato. Contatta uno staff.", ephemeral=True
+            )
+
+        verified_role = interaction.guild.get_role(verified_id)
+        if not verified_role:
+            return await interaction.response.send_message(
+                "❌ Il ruolo verificato configurato non esiste più. Contatta uno staff.", ephemeral=True
+            )
+
+        if verified_role in interaction.user.roles:
+            return await interaction.response.send_message("✅ Sei già verificato!", ephemeral=True)
+
+        try:
+            await interaction.user.add_roles(verified_role)
+        except discord.Forbidden:
+            return await interaction.response.send_message(
+                "❌ Non ho i permessi per assegnarti il ruolo verificato.", ephemeral=True
+            )
+
+        if unverified_id:
+            unverified_role = interaction.guild.get_role(unverified_id)
+            if unverified_role and unverified_role in interaction.user.roles:
+                try:
+                    await interaction.user.remove_roles(unverified_role)
+                except discord.Forbidden:
+                    pass
+
+        await interaction.response.send_message("✅ Verifica completata con successo! Benvenuto nel server.", ephemeral=True)
 
 
 class Utility(commands.Cog):
@@ -11,6 +53,7 @@ class Utility(commands.Cog):
         self.invite_cache = {}
 
     async def cog_load(self):
+        self.bot.add_view(VerifyView())
         for guild in self.bot.guilds:
             try:
                 self.invite_cache[guild.id] = await guild.invites()
@@ -48,12 +91,15 @@ class Utility(commands.Cog):
     @commands.Cog.listener()
     async def on_member_join(self, member):
         settings = data.load("settings").get(str(member.guild.id), {})
-        role = member.guild.get_role(config.UNVERIFIED_ROLE)
-        if role:
-            try:
-                await member.add_roles(role)
-            except discord.Forbidden:
-                pass
+
+        unverified_id = settings.get("unverified_role")
+        if unverified_id:
+            role = member.guild.get_role(unverified_id)
+            if role:
+                try:
+                    await member.add_roles(role)
+                except discord.Forbidden:
+                    pass
 
         channel_id = settings.get("welcome_channel")
         if channel_id:
@@ -212,28 +258,41 @@ class Utility(commands.Cog):
     @commands.hybrid_command(name="verifica", description="Invia il messaggio di verifica")
     @commands.has_permissions(administrator=True)
     async def verifica(self, ctx):
-        msg = await ctx.send(
-            f"Per vedere il resto dei canali e goderti un'esperienza migliore del server, "
-            f"reagisci qui sotto con ✅ e otterrai il ruolo <@&{config.VERIFIED_ROLE}>"
+        embed = discord.Embed(
+            title="✅ VERIFICA DI SICUREZZA ⚠️",
+            description=(
+                "Benvenuto! Per accedere al resto del server devi verificarti.\n\n"
+                "**Come funziona:**\n"
+                "1️⃣ Premi il pulsante ✅ **Verificati ora** qui sotto\n"
+                "2️⃣ Il sistema controlla il tuo account (età, avatar, blacklist globale)\n"
+                "3️⃣ Se tutto è a posto ricevi subito il ruolo ✅ `Verificato`\n\n"
+                "Questo protegge il server da account falsi, alt e bot spam.\n"
+                "Se il controllo segnala qualcosa di sospetto, lo staff verrà avvisato "
+                "ma potrai comunque verificarti — nessun ban automatico."
+            ),
+            color=discord.Color.gold()
         )
-        await msg.add_reaction("✅")
+        embed.set_footer(text="J&G Security")
+        await ctx.send(embed=embed, view=VerifyView())
 
-    @commands.Cog.listener()
-    async def on_raw_reaction_add(self, payload):
-        if payload.emoji.name != "✅" or payload.member is None or payload.member.bot:
-            return
-        channel = self.bot.get_channel(payload.channel_id)
-        message = await channel.fetch_message(payload.message_id)
-        if message.author.id != self.bot.user.id:
-            return
-        if "verifica" not in message.content.lower() and "reagisci" not in message.content.lower():
-            return
-        role = payload.member.guild.get_role(config.VERIFIED_ROLE)
-        unverified = payload.member.guild.get_role(config.UNVERIFIED_ROLE)
-        if role:
-            await payload.member.add_roles(role)
-        if unverified and unverified in payload.member.roles:
-            await payload.member.remove_roles(unverified)
+    # ---------- CONFIGURAZIONE RUOLI VERIFICA ----------
+    @commands.hybrid_command(name="roleverified", description="Configura il ruolo da assegnare quando un utente si verifica")
+    @commands.has_permissions(administrator=True)
+    async def roleverified(self, ctx, role: discord.Role):
+        settings = data.load("settings")
+        g = settings.setdefault(str(ctx.guild.id), {})
+        g["verified_role"] = role.id
+        data.save("settings", settings)
+        await ctx.send(f"✅ Ruolo verificato impostato su {role.mention}")
+
+    @commands.hybrid_command(name="roleunverified", description="Configura il ruolo non verificato da rimuovere quando l'utente si verifica")
+    @commands.has_permissions(administrator=True)
+    async def roleunverified(self, ctx, role: discord.Role):
+        settings = data.load("settings")
+        g = settings.setdefault(str(ctx.guild.id), {})
+        g["unverified_role"] = role.id
+        data.save("settings", settings)
+        await ctx.send(f"✅ Ruolo non verificato impostato su {role.mention}")
 
 
 async def setup(bot):
