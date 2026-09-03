@@ -4,7 +4,15 @@ load_dotenv()
 # ==== TOKEN & PREFIX ====
 TOKEN = os.getenv("DISCORD_TOKEN")
 PREFIX = "."
-
+# ==== RUOLI LIVELLI ====
+LEVEL_ROLES = {
+    5: 1543922260560314407,
+    10: 1543922260598071406,
+    20: 1543922260598071407,
+    50: 1543959134691659826,
+    70: 1543959275393523783,
+    100: 1543959438480900216,
+}
 # ==== RUOLO SHOP AURA ====
 AURA_SHOP_ROLE = 1543922260598071412
 AURA_SHOP_COST = 100000
@@ -25,6 +33,11 @@ AURA_SHOP_COST = 100000
 # ==== CANALE RECENSIONI TICKET ====
 # Non più hardcoded: si configura ora per server con il comando
 # "rateconfig" (e si rimuove con "rateremove"), salvato in ticket_config.json
+# ==== CANALE PRENOTAZIONI APPUNTAMENTI ====
+# Non hardcoded: si configura per server con il comando "configpreno"
+# (e si rimuove con "removepreno"), salvato in ticket_config.json.
+# Il pannello si invia con "ticketprenotazioni": il bottone fa due domande
+# in sequenza all'utente e poi manda domande+risposte nel canale configurato.
 # ==== CANALI DA CONFIGURARE (metti gli ID reali) ====
 WELCOME_CHANNEL_ID = None
 GOODBYE_CHANNEL_ID = None
