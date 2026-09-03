@@ -2,17 +2,12 @@ import discord
 from discord.ext import commands
 import data
 import config
-
-
 def messages_needed(level):
-    # livello 1 = 15 msg, livello 2 = 30 msg, ecc. (15 * livello)
-    return 15 * (level + 1)
-
-
+    # servono sempre 20 messaggi per salire di livello, qualunque sia il livello
+    return 20
 class Leveling(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-
     @commands.Cog.listener()
     async def on_message(self, message):
         if message.author.bot or not message.guild:
@@ -21,6 +16,7 @@ class Leveling(commands.Cog):
         u["messages"] += 1
         needed = messages_needed(u["level"])
         if u["messages"] >= needed:
+            u["messages"] -= needed
             u["level"] += 1
             data.save("levels", levels)
             await message.channel.send(
@@ -36,7 +32,6 @@ class Leveling(commands.Cog):
                         pass
         else:
             data.save("levels", levels)
-
     @commands.hybrid_command(name="rank", description="Mostra il tuo livello")
     async def rank(self, ctx, member: discord.Member = None):
         member = member or ctx.author
@@ -48,14 +43,12 @@ class Leveling(commands.Cog):
         embed.add_field(name="Messaggi", value=f"{u['messages']}/{needed}")
         embed.add_field(name="Messaggi mancanti", value=mancanti)
         await ctx.send(embed=embed)
-
     @commands.hybrid_command(name="ranking", description="Quanto ti manca al prossimo livello")
     async def ranking(self, ctx):
         levels, u = data.get_user_levels(ctx.guild.id, ctx.author.id)
         needed = messages_needed(u["level"])
         mancanti = max(0, needed - u["messages"])
         await ctx.send(f"📈 Ti mancano **{mancanti}** messaggi per il livello {u['level'] + 1}")
-
     @commands.hybrid_command(name="levelleaderboard", description="Top 10 livelli del server")
     async def levelleaderboard(self, ctx):
         levels = data.load("levels").get(str(ctx.guild.id), {})
@@ -68,7 +61,5 @@ class Leveling(commands.Cog):
             desc += f"**{i}.** {name} — Livello {info['level']}\n"
         embed.description = desc or "Nessun dato."
         await ctx.send(embed=embed)
-
-
 async def setup(bot):
     await bot.add_cog(Leveling(bot))
