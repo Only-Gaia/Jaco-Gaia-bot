@@ -69,7 +69,8 @@ class Help(commands.Cog):
         embed.add_field(
             name="✅ Config Verifica",
             value=(
-                "`verifica` `roleverified` `roleunverified`"
+                "`verifica` `roleverified` `roleunverified` `blacklistadd` "
+                "`blacklistremove` `blacklistlist`"
             ),
             inline=False
         )
