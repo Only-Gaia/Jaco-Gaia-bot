@@ -67,11 +67,18 @@ class Help(commands.Cog):
             inline=False
         )
         embed.add_field(
+            name="✅ Config Verifica",
+            value=(
+                "`verifica` `roleverified` `roleunverified`"
+            ),
+            inline=False
+        )
+        embed.add_field(
             name="⚙️ Utility",
             value=(
                 "`setwelcome` `setgoodbye` `setwelcomegoodbylogs` `invites` "
                 "`showinvites` `resetinvites` `resetinvitesall` `setinviteschannel` "
-                "`invitebot` `userinfo` `serverinfo` `verifica`"
+                "`invitebot` `userinfo` `serverinfo`"
             ),
             inline=False
         )
