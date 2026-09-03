@@ -2,7 +2,51 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Button
+from datetime import datetime, timezone
 import data
+
+
+# ---------- CONTROLLO RISCHIO ACCOUNT ----------
+# NOTA IMPORTANTE: Discord non fornisce alcuna API che indichi se un account
+# ha "bot nuke/raid" collegati o installati: questa informazione non esiste
+# e nessun bot può leggerla. Quello che segue è un controllo EURISTICO basato
+# su segnali pubblici (età account, avatar, nome) più una blacklist gestita
+# manualmente dallo staff (es. ID noti di account usati in raid/nuke passati).
+# Serve a segnalare account sospetti allo staff, NON a bloccare la verifica
+# in automatico.
+
+ACCOUNT_AGE_WARNING_DAYS = 7      # sotto questa soglia: account molto giovane
+SUSPICIOUS_NAME_KEYWORDS = ["nuke", "raid", "selfbot", "nitro.gg", "discord.gift"]
+
+
+def check_account_risk(member: discord.Member, blacklist: dict) -> list[str]:
+    """Restituisce una lista di motivi di sospetto (vuota se l'account sembra pulito)."""
+    reasons = []
+
+    # 1. Blacklist manuale (ID segnalati in precedenza dallo staff)
+    if str(member.id) in blacklist:
+        reason = blacklist[str(member.id)].get("reason", "Segnalato in precedenza")
+        reasons.append(f"⚠️ Account in blacklist: {reason}")
+
+    # 2. Età dell'account
+    age_days = (datetime.now(timezone.utc) - member.created_at).days
+    if age_days < ACCOUNT_AGE_WARNING_DAYS:
+        reasons.append(f"🆕 Account creato solo {age_days} giorni fa")
+
+    # 3. Avatar di default (nessun avatar personalizzato)
+    if member.avatar is None:
+        reasons.append("🖼️ Nessun avatar personalizzato")
+
+    # 4. Nome utente/global name con parole chiave sospette
+    names_to_check = [member.name, member.global_name or ""]
+    for name in names_to_check:
+        lowered = name.lower()
+        for kw in SUSPICIOUS_NAME_KEYWORDS:
+            if kw in lowered:
+                reasons.append(f"📛 Nome sospetto (contiene '{kw}')")
+                break
+
+    return reasons
 
 
 class VerifyView(View):
@@ -29,20 +73,41 @@ class VerifyView(View):
         if verified_role in interaction.user.roles:
             return await interaction.response.send_message("✅ Sei già verificato!", ephemeral=True)
 
+        # ---- Controllo rischio account (euristico, non bloccante) ----
+        blacklist = data.load("blacklist").get(str(interaction.guild.id), {})
+        risk_reasons = check_account_risk(interaction.user, blacklist)
+
+        # Assegna il ruolo verificato
         try:
-            await interaction.user.add_roles(verified_role)
+            await interaction.user.add_roles(verified_role, reason="Verifica completata")
         except discord.Forbidden:
             return await interaction.response.send_message(
                 "❌ Non ho i permessi per assegnarti il ruolo verificato.", ephemeral=True
             )
 
+        # Rimuove il ruolo non verificato, se configurato e presente
         if unverified_id:
             unverified_role = interaction.guild.get_role(unverified_id)
             if unverified_role and unverified_role in interaction.user.roles:
                 try:
-                    await interaction.user.remove_roles(unverified_role)
+                    await interaction.user.remove_roles(unverified_role, reason="Verifica completata")
                 except discord.Forbidden:
                     pass
+
+        # Se l'account risulta sospetto, avvisa lo staff (nessun blocco automatico)
+        if risk_reasons:
+            settings = data.load("settings").get(str(interaction.guild.id), {})
+            log_id = settings.get("welcome_goodbye_log") or settings.get("invites_channel")
+            log_channel = interaction.guild.get_channel(log_id) if log_id else None
+            if log_channel:
+                embed = discord.Embed(
+                    title="🚨 Verifica sospetta",
+                    description=f"{interaction.user.mention} si è verificato ma presenta segnali sospetti:",
+                    color=discord.Color.red()
+                )
+                embed.add_field(name="Motivi", value="\n".join(risk_reasons), inline=False)
+                embed.set_footer(text=f"ID: {interaction.user.id}")
+                await log_channel.send(embed=embed)
 
         await interaction.response.send_message("✅ Verifica completata con successo! Benvenuto nel server.", ephemeral=True)
 
@@ -92,12 +157,13 @@ class Utility(commands.Cog):
     async def on_member_join(self, member):
         settings = data.load("settings").get(str(member.guild.id), {})
 
+        # Assegna il ruolo "non verificato" configurato, se esiste
         unverified_id = settings.get("unverified_role")
         if unverified_id:
             role = member.guild.get_role(unverified_id)
             if role:
                 try:
-                    await member.add_roles(role)
+                    await member.add_roles(role, reason="Nuovo membro: assegnazione ruolo non verificato")
                 except discord.Forbidden:
                     pass
 
@@ -293,6 +359,41 @@ class Utility(commands.Cog):
         g["unverified_role"] = role.id
         data.save("settings", settings)
         await ctx.send(f"✅ Ruolo non verificato impostato su {role.mention}")
+
+    # ---------- BLACKLIST (segnali di rischio account) ----------
+    @commands.hybrid_command(name="blacklistadd", description="Segnala un account come sospetto (verrà avvisato lo staff se prova a verificarsi)")
+    @commands.has_permissions(administrator=True)
+    async def blacklistadd(self, ctx, user: discord.User, *, motivo: str = "Nessun motivo specificato"):
+        bl = data.load("blacklist")
+        g = bl.setdefault(str(ctx.guild.id), {})
+        g[str(user.id)] = {"reason": motivo, "added_by": ctx.author.id}
+        data.save("blacklist", bl)
+        await ctx.send(f"✅ {user.mention} aggiunto alla blacklist. Motivo: {motivo}")
+
+    @commands.hybrid_command(name="blacklistremove", description="Rimuove un account dalla blacklist")
+    @commands.has_permissions(administrator=True)
+    async def blacklistremove(self, ctx, user: discord.User):
+        bl = data.load("blacklist")
+        g = bl.setdefault(str(ctx.guild.id), {})
+        if str(user.id) in g:
+            del g[str(user.id)]
+            data.save("blacklist", bl)
+            await ctx.send(f"✅ {user.mention} rimosso dalla blacklist.")
+        else:
+            await ctx.send(f"❌ {user.mention} non è in blacklist.")
+
+    @commands.hybrid_command(name="blacklistlist", description="Mostra gli account in blacklist")
+    @commands.has_permissions(administrator=True)
+    async def blacklistlist(self, ctx):
+        bl = data.load("blacklist").get(str(ctx.guild.id), {})
+        if not bl:
+            return await ctx.send("✅ Nessun account in blacklist.")
+        embed = discord.Embed(title="🚫 Blacklist account", color=discord.Color.dark_red())
+        desc = ""
+        for uid, info in bl.items():
+            desc += f"<@{uid}> — {info.get('reason', 'N/A')}\n"
+        embed.description = desc
+        await ctx.send(embed=embed)
 
 
 async def setup(bot):
