@@ -345,6 +345,7 @@ class SupportTicketSelect(Select):
             discord.SelectOption(label="Riscatta giveaway", value="giveaway", emoji="🎁"),
             discord.SelectOption(label="Segnala bug del bot", value="bug", emoji="‼️"),
             discord.SelectOption(label="Assistenza generale", value="assistenza", emoji="❓"),
+            discord.SelectOption(label="Provino staff", value="provino", emoji="📋"),
         ]
         super().__init__(placeholder="Seleziona il motivo del ticket...", options=options, custom_id="support_ticket_select")
 
@@ -354,6 +355,7 @@ class SupportTicketSelect(Select):
             "giveaway": "Riscatto giveaway",
             "bug": "Segnalazione bug",
             "assistenza": "Assistenza generale",
+            "provino": "Provino staff",
         }
         await create_ticket_channel(interaction, f"support-{self.values[0]}", topics[self.values[0]])
 
@@ -456,7 +458,8 @@ class Tickets(commands.Cog):
                 "🤝 | Partnership\n"
                 "‼️ | Segnalare bug del bot acquistato\n"
                 "🎁 | Riscatta Giveaway\n"
-                "❓ | assistenza generale\n\n"
+                "❓ | assistenza generale\n"
+                "📋 | Provino staff\n\n"
                 "⚠️ATTENZIONE⚠️ Ci diamo il diritto di chiudere i ticket aperti da troppo tempo o per far perdere tempo"
             ),
             color=discord.Color.blurple()
